@@ -18,16 +18,22 @@ jobs:
           Expand-Archive -Path ngrok.zip -DestinationPath . -Force
           .\ngrok.exe authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
 
-      - name: Access configure  # yahan apna naam / custom label use kar sakte ho
+            - name: Access configure  # yahan apna naam / custom label use kar sakte ho
+        shell: powershell
         run: |
-          # Terminal services enable (registry)
           Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0 -Force
-          # Port allow (firewall rule custom naam)
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           netsh advfirewall firewall add rule name="AllowCustomPort" dir=in action=allow protocol=TCP localport=3389
-          # User banao — yahan apna username aur password daal sakte ho
-          net user MyCustomUser YourStrongPass123 /add
-          net localgroup administrators MyCustomUser /add
-
+          $user = "MyCustomUser"          # yahan apna username
+          $plain = "YourStrongPass123"    # yahan apna password (jo marzi length)
+          $pass = ConvertTo-SecureString $plain -AsPlainText -Force
+          if (Get-LocalUser -Name $user -ErrorAction SilentlyContinue) {
+            Remove-LocalUser -Name $user
+          }
+          New-LocalUser -Name $user -Password $pass -PasswordNeverExpires -AccountNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member $user
+          Set-Service -Name TermService -StartupType Automatic
+          Start-Service TermService -ErrorAction SilentlyContinue
       - name: Tunnel start aur Discord pe bhejo
         run: |
           Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -NoNewWindow
