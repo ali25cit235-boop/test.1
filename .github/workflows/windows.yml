@@ -1,4 +1,4 @@
-name: Windows 11 RDP + Auto AnyDesk Setup
+name: Windows 11 RDP (Bore Tunnel)
 
 on:
   workflow_dispatch:
@@ -9,13 +9,12 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable RDP & Auto-Install AnyDesk
+    - name: Enable Remote Desktop
       run: |
-        # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Disable Password Policy & Create User
+        # Bypass Password Policy & Create User
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
@@ -23,31 +22,19 @@ jobs:
         net user ali pass123 /add
         net localgroup administrators ali /add
 
-        # Download & Install AnyDesk
-        Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "C:\AnyDesk.exe"
-        
-        # Set Password 'pass123' for Unattended Access
-        cmd.exe /c "echo pass123 | C:\AnyDesk.exe --set-password"
-
-    - name: Get AnyDesk ID & Start Tunnel
+    - name: Start Bore Tunnel
       run: |
-        # Get AnyDesk ID
-        $anydeskId = cmd.exe /c "C:\AnyDesk.exe --get-id"
-        
-        # Start Bore Tunnel as Backup
         Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
         Expand-Archive -Path "bore.zip" -DestinationPath "."
         Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log"
         Start-Sleep -Seconds 5
 
         Write-Host "=========================================="
-        Write-Host "🚀 ANYDESK READY FOR LOW-LAG ACCESS"
+        Write-Host "🚀 BORE RDP READY"
         Write-Host "=========================================="
-        Write-Host "ANYDESK ID      : $anydeskId"
-        Write-Host "ANYDESK PASS    : pass123"
-        Write-Host "=========================================="
-        Write-Host "RDP BACKUP IP   :"
         Get-Content bore.log | Select-String "listening at"
+        Write-Host "USERNAME    : ali"
+        Write-Host "PASSWORD    : pass123"
         Write-Host "=========================================="
 
     - name: Keep Alive Loop
