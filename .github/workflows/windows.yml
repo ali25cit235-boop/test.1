@@ -1,4 +1,4 @@
-name: Fast Linux RDP (Stable Tunnel)
+name: 6-Hour Unrestricted RDP (MSTSC)
 
 on:
   workflow_dispatch:
@@ -9,34 +9,36 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Install Desktop Environment & XRDP
+    - name: Install Desktop Environment (LXDE) & XRDP
       run: |
         sudo apt update
-        sudo apt install -y xfce4 xfce4-goodies xrdp
+        sudo apt install -y lxde xrdp
         
-        # User & Password setup
+        # User create & Password setup
         sudo useradd -m -s /bin/bash rdpuser
         echo "rdpuser:pass123" | sudo chpasswd
         sudo usermod -aG sudo,xrdp rdpuser
         
-        # Session setup
-        echo "startxfce4" | sudo tee /home/rdpuser/.xsession
+        # Session setup for LXDE
+        echo "lxsession -s LXDE -e LXDE" | sudo tee /home/rdpuser/.xsession
         sudo chown rdpuser:rdpuser /home/rdpuser/.xsession
         
-        # Fix XRDP Security Restrictions
+        # XRDP Configuration Fixes
         sudo sed -i 's/allowed_users=console/allowed_users=anybody/g' /etc/X11/Xwrapper.config
+        sudo systemctl enable xrdp
         sudo systemctl restart xrdp
 
-    - name: Start Pinggy RDP Tunnel
+    - name: Start 6-Hour Persistent Tunnel
       run: |
         echo "=========================================="
+        echo "🚀 RDP SERVER READY FOR MSTSC"
         echo "USERNAME     : rdpuser"
         echo "PASSWORD     : pass123"
         echo "=========================================="
         
-        # Correct domain and Non-interactive SSH flags
+        # Continuous Keep-Alive Loop for Serveo
         while true; do
-          ssh -p 443 -p 443 -T -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 a.pinggy.io
-          echo "Tunnel disconnected. Reconnecting in 5 seconds..."
-          sleep 5
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -R 0:localhost:3389 serveo.net
+          echo "Tunnel disconnected. Reconnecting in 3 seconds..."
+          sleep 3
         done
