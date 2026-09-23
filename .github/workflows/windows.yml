@@ -29,15 +29,14 @@ jobs:
 
     - name: Setup & Start Ngrok Tunnel
       run: |
-        # Download and install Ngrok
-        Invoke-WebRequest -Uri https://bin.equinox.io/c/b4pkw34pabB/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
-        Expand-Archive ngrok.zip -DestinationPath .
+        # Download and install Ngrok via Chocolatey
+        choco install ngrok -y
         
         # Authenticate Ngrok
-        .\ngrok.exe authtoken ${{ secrets.NGROK_AUTHTOKEN }}
+        ngrok config add-authtoken ${{ secrets.NGROK_AUTHTOKEN }}
         
         # Start Ngrok TCP Tunnel in Background
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389"
+        Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389"
         
         # Wait for Tunnel to initialize
         Start-Sleep -Seconds 5
