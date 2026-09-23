@@ -1,17 +1,17 @@
-name: Windows 11 High-Speed Low-Lag RDP
+name: Windows Fast Performance RDP
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2019  # Light-weight Windows Server 2019 (Fastest)
     timeout-minutes: 360
 
     steps:
-    - name: Enable RDP & Network Lag Optimization
+    - name: Enable Remote Desktop & Extreme Performance Mode
       run: |
-        # Enable Remote Desktop
+        # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
@@ -23,31 +23,27 @@ jobs:
         net user ali pass123 /add
         net localgroup administrators ali /add
 
-        # Extreme Performance Tweak (Disable Aero, Wallpapers, Shadows)
+        # Disable Visual Effects & Animations (Fixes Lag Completely)
         Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
-        
-        # RDP Registry Lag Fix (Enable UDP & Reduce Latency Buffer)
-        Reg Add "HKLM\Software\Policies\Microsoft\Windows NT\Terminal Services" /v fEnableKeepAlive /t REG_DWORD /d 1 /f
-        Reg Add "HKLM\Software\Policies\Microsoft\Windows NT\Terminal Services" /v KeepAliveInterval /t REG_DWORD /d 1 /f
-        Reg Add "HKLM\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v MinEncryptionLevel /t REG_DWORD /d 1 /f
+        Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00))
 
-    - name: Setup & Run Optimized Bore Tunnel
+    - name: Start High-Speed Bore Tunnel
       run: |
         Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
         Expand-Archive -Path "bore.zip" -DestinationPath "."
-        
-        # Start Bore with local low-latency routing
-        Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log" -RedirectStandardError "bore_err.log"
+        Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log"
         Start-Sleep -Seconds 5
-        
+
         Write-Host "=========================================="
-        Write-Host "🚀 ULTRA FAST RDP READY"
+        Write-Host "🚀 ULTRA FAST WINDOWS RDP READY"
         Write-Host "=========================================="
         Get-Content bore.log | Select-String "listening at"
-        Write-Host "USERNAME        : ali"
-        Write-Host "PASSWORD        : pass123"
+        Write-Host "USERNAME    : ali"
+        Write-Host "PASSWORD    : pass123"
         Write-Host "=========================================="
-        
+
+    - name: Keep Alive Loop
+      run: |
         while ($true) {
             Start-Sleep -Seconds 60
         }
