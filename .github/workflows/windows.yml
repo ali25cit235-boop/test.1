@@ -15,7 +15,6 @@ jobs:
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
         
-        # Bypass Password Complexity Policy
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
@@ -23,18 +22,21 @@ jobs:
         net user ali pass123 /add
         net localgroup administrators ali /add
 
-    - name: Download Cloudflare Tunnel for RDP TCP
+    - name: Start Pinggy TCP Tunnel
       run: |
-        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
-        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "access tcp --url localhost:3389 --hostname rdp.trycloudflare.com" -RedirectStandardOutput "cf.log" -RedirectStandardError "cf_err.log"
-        Start-Sleep -Seconds 6
+        if (!(Get-Command ssh -ErrorAction SilentlyContinue)) {
+            Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+        }
 
-    - name: Show Connection Details
-      run: |
+        # Start tunnel and capture output live
+        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "pinggy.log" -RedirectStandardError "pinggy_err.log"
+        Start-Sleep -Seconds 7
+
         Write-Host "=========================================="
-        Write-Host "🚀 RDP IS READY VIA CLOUDFLARE TCP!"
+        Write-Host "🚀 PINGGY RDP TUNNEL READY!"
         Write-Host "=========================================="
-        Write-Host "HOST: rdp.trycloudflare.com"
+        Get-Content pinggy.log
+        Get-Content pinggy_err.log
         Write-Host "USERNAME: ali"
         Write-Host "PASSWORD: pass123"
         Write-Host "=========================================="
