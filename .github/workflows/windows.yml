@@ -1,4 +1,4 @@
-name: Windows Fast Performance RDP
+name: Windows RDP Free
 
 on:
   workflow_dispatch:
@@ -9,49 +9,33 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable Remote Desktop & Fix Speed
+    - name: Enable RDP
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        
-        secedit /export /cfg C:\secpol.cfg
-        (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
-        secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
         
         net user ali pass123 /add
         net localgroup administrators ali /add
 
-        # Disable Visual Effects & Animations (Speed Boost)
-        Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
-
-    - name: Start Pinggy TCP Tunnel & Show IP
+    - name: Download Cloudflare Tunnel for RDP TCP
       run: |
-        # Install OpenSSH if missing
-        if (!(Get-Command ssh -ErrorAction SilentlyContinue)) {
-            Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-        }
-
-        Write-Host "=========================================="
-        Write-Host "🚀 STARTING PINGGY TUNNEL (Please wait 5s)..."
-        Write-Host "=========================================="
-
-        # Run SSH tunnel in background and capture output directly
-        $job = Start-Job -ScriptBlock {
-            ssh -o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 tcp@a.pinggy.io
-        }
-        
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
+        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "access tcp --url localhost:3389 --hostname rdp.trycloudflare.com" -RedirectStandardOutput "cf.log" -RedirectStandardError "cf_err.log"
         Start-Sleep -Seconds 6
-        
-        # Display Job Output / Connection URL
-        Receive-Job -Job $job
-        
+
+    - name: Show Connection Details
+      run: |
         Write-Host "=========================================="
-        Write-Host "USERNAME    : ali"
-        Write-Host "PASSWORD    : pass123"
+        Write-Host "🚀 RDP IS READY VIA CLOUDFLARE TCP!"
+        Write-Host "=========================================="
+        Write-Host "HOST: rdp.trycloudflare.com (or check cloudflared output)"
+        Write-Host "USERNAME: ali"
+        Write-Host "PASSWORD: pass123"
         Write-Host "=========================================="
 
-    - name: Keep Alive Loop
+    - name: Keep Alive
       run: |
         while ($true) {
-            Start-Sleep -Seconds 60
+            Start-Sleep -Seconds 30
         }
