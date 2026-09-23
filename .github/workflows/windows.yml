@@ -34,9 +34,9 @@ jobs:
         echo "PASSWORD     : pass123"
         echo "=========================================="
         
-        # Loop for continuous connection
+        # Correct domain and Non-interactive SSH flags
         while true; do
-          ssh -p 443 -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 tcp.pinggy.io
+          ssh -p 443 -p 443 -T -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 a.pinggy.io
           echo "Tunnel disconnected. Reconnecting in 5 seconds..."
           sleep 5
         done
