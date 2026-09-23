@@ -1,4 +1,4 @@
-name: Windows 11 RDP (Direct Fast Tunnel)
+name: Windows 11 RDP (Bore Tunnel - No Token)
 
 on:
   workflow_dispatch:
@@ -9,66 +9,38 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable Remote Desktop & Optimize Performance
+    - name: Enable Remote Desktop & Performance Settings
       run: |
-        # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Disable Password Complexity Requirements
+        # Bypass Password Policy & Create User
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
         
-        # Create User "ali" with Password "pass123"
         net user ali pass123 /add
         net localgroup administrators ali /add
         
-        # Performance Tuning (Disable Visual Effects for Zero Lag)
+        # Disable Visual Effects for Speed
         Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
 
-    - name: Setup & Start Ngrok Tunnel
+    - name: Setup & Run Bore Tunnel
       run: |
-        # Download and install Ngrok via Chocolatey
-        choco install ngrok -y
+        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+        Expand-Archive -Path "bore.zip" -DestinationPath "."
         
-        # Authenticate Ngrok directly with token
-        ngrok config add-authtoken 3JixAhVMU1xOp1uGy7ewH12pJvv_3dnZRieoDfcZjk9FP5zPf
-        
-        # Start Ngrok TCP Tunnel in Background & log output
-        Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389 --log=stdout" -RedirectStandardOutput "ngrok.log" -RedirectStandardError "ngrok_err.log"
-        
-        # Retry loop until Ngrok API is active
-        $tunnelUrl = ""
-        $count = 0
-        while ([string]::IsNullOrEmpty($tunnelUrl) -and $count -lt 10) {
-            Start-Sleep -Seconds 4
-            try {
-                $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
-                $tunnelUrl = $ngrokApi.tunnels[0].public_url -replace "tcp://", ""
-            } catch {
-                Write-Host "Waiting for Ngrok API to start..."
-            }
-            $count++
-        }
-        
-        if ([string]::IsNullOrEmpty($tunnelUrl)) {
-            Write-Host "--- NGROK LOGS ---"
-            Get-Content ngrok.log -ErrorAction SilentlyContinue
-            Get-Content ngrok_err.log -ErrorAction SilentlyContinue
-            Write-Error "Ngrok tunnel failed to start!"
-            exit 1
-        }
+        Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log" -RedirectStandardError "bore_err.log"
+        Start-Sleep -Seconds 5
         
         Write-Host "=========================================="
-        Write-Host "🚀 NGROK FAST RDP READY FOR MSTSC"
+        Write-Host "🚀 RDP SERVER READY"
         Write-Host "=========================================="
-        Write-Host "CONNECT IP/PORT : $tunnelUrl"
+        Get-Content bore.log | Select-String "listening at"
         Write-Host "USERNAME        : ali"
         Write-Host "PASSWORD        : pass123"
         Write-Host "=========================================="
         
-        # Keep Alive Loop for 6 Hours
         while ($true) {
             Start-Sleep -Seconds 60
         }
