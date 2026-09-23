@@ -1,4 +1,4 @@
-name: Windows 11 High-Speed Low-Lag RDP
+name: Windows 11 RDP (LocalXpose Fast Tunnel)
 
 on:
   workflow_dispatch:
@@ -9,13 +9,11 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable RDP & Network Lag Optimization
+    - name: Enable RDP
       run: |
-        # Enable Remote Desktop
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Bypass Password Policy & Create User
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
@@ -23,31 +21,24 @@ jobs:
         net user ali pass123 /add
         net localgroup administrators ali /add
 
-        # Extreme Performance Tweak (Disable Aero, Wallpapers, Shadows)
-        Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
-        
-        # RDP Registry Lag Fix (Enable UDP & Reduce Latency Buffer)
-        Reg Add "HKLM\Software\Policies\Microsoft\Windows NT\Terminal Services" /v fEnableKeepAlive /t REG_DWORD /d 1 /f
-        Reg Add "HKLM\Software\Policies\Microsoft\Windows NT\Terminal Services" /v KeepAliveInterval /t REG_DWORD /d 1 /f
-        Reg Add "HKLM\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" /v MinEncryptionLevel /t REG_DWORD /d 1 /f
-
-    - name: Setup & Run Optimized Bore Tunnel
+    - name: Setup LocalXpose
       run: |
-        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
-        Expand-Archive -Path "bore.zip" -DestinationPath "."
+        Invoke-WebRequest -Uri "https://localxpose.io/api/v2/downloads/loclx-windows-amd64.zip" -OutFile "loclx.zip"
+        Expand-Archive -Path "loclx.zip" -DestinationPath "."
         
-        # Start Bore with local low-latency routing
-        Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log" -RedirectStandardError "bore_err.log"
-        Start-Sleep -Seconds 5
+        Start-Process -FilePath ".\loclx.exe" -ArgumentList "tunnel tcp --to 127.0.0.1:3389" -RedirectStandardOutput "loclx.log"
+        Start-Sleep -Seconds 6
         
         Write-Host "=========================================="
-        Write-Host "🚀 ULTRA FAST RDP READY"
+        Write-Host "🚀 RDP READY"
         Write-Host "=========================================="
-        Get-Content bore.log | Select-String "listening at"
+        Get-Content loclx.log
         Write-Host "USERNAME        : ali"
         Write-Host "PASSWORD        : pass123"
         Write-Host "=========================================="
-        
+
+    - name: Keep Alive
+      run: |
         while ($true) {
             Start-Sleep -Seconds 60
         }
