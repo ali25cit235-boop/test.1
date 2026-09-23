@@ -11,11 +11,9 @@ jobs:
     steps:
     - name: Enable Remote Desktop & Fix Speed
       run: |
-        # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Disable Password Policy & Create User
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
@@ -23,21 +21,27 @@ jobs:
         net user ali pass123 /add
         net localgroup administrators ali /add
 
-        # Disable Visual Effects & Animations (Extreme Speed Boost)
+        # Disable Visual Effects & Animations (Speed Boost)
         Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
-        Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00))
 
-    - name: Start High-Speed Bore Tunnel
+    - name: Start Ngrok TCP Tunnel
       run: |
-        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
-        Expand-Archive -Path "bore.zip" -DestinationPath "."
-        Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log"
-        Start-Sleep -Seconds 5
-
+        # Download Ngrok
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/b4Pvu3rtCDy/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
+        Expand-Archive -Path "ngrok.zip" -DestinationPath "."
+        
+        # Start Ngrok without token (using anonymous guest tcp tunnel)
+        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -RedirectStandardOutput "ngrok.log"
+        Start-Sleep -Seconds 6
+        
+        # Fetch Address from Ngrok API
+        $log = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
+        $publicUrl = $log.tunnels[0].public_url -replace "tcp://", ""
+        
         Write-Host "=========================================="
-        Write-Host "🚀 ULTRA FAST WINDOWS RDP READY"
+        Write-Host "🚀 NGROK FAST RDP READY"
         Write-Host "=========================================="
-        Get-Content bore.log | Select-String "listening at"
+        Write-Host "CONNECT IP  : $publicUrl"
         Write-Host "USERNAME    : ali"
         Write-Host "PASSWORD    : pass123"
         Write-Host "=========================================="
