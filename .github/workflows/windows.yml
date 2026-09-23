@@ -1,4 +1,4 @@
-name: Windows 11 RDP (Ngrok High-Speed)
+name: Windows 11 RDP (Direct Fast Tunnel)
 
 on:
   workflow_dispatch:
@@ -32,17 +32,17 @@ jobs:
         # Download and install Ngrok via Chocolatey
         choco install ngrok -y
         
-        # Authenticate Ngrok
-        ngrok config add-authtoken ${{ secrets.NGROK_AUTHTOKEN }}
+        # Authenticate Ngrok directly with token
+        ngrok config add-authtoken 3JixAhVMU1xOp1uGy7ewH12pJvv_3dnZRieoDfcZjk9FP5zPf
         
-        # Start Ngrok TCP Tunnel in Background
-        Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389"
+        # Start Ngrok TCP Tunnel in Background & log output
+        Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389 --log=stdout" -RedirectStandardOutput "ngrok.log" -RedirectStandardError "ngrok_err.log"
         
         # Retry loop until Ngrok API is active
         $tunnelUrl = ""
         $count = 0
-        while ([string]::IsNullOrEmpty($tunnelUrl) -and $count -lt 12) {
-            Start-Sleep -Seconds 3
+        while ([string]::IsNullOrEmpty($tunnelUrl) -and $count -lt 10) {
+            Start-Sleep -Seconds 4
             try {
                 $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
                 $tunnelUrl = $ngrokApi.tunnels[0].public_url -replace "tcp://", ""
@@ -53,6 +53,9 @@ jobs:
         }
         
         if ([string]::IsNullOrEmpty($tunnelUrl)) {
+            Write-Host "--- NGROK LOGS ---"
+            Get-Content ngrok.log -ErrorAction SilentlyContinue
+            Get-Content ngrok_err.log -ErrorAction SilentlyContinue
             Write-Error "Ngrok tunnel failed to start!"
             exit 1
         }
