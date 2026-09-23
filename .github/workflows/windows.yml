@@ -1,4 +1,4 @@
-name: Windows 11 RDP (LocalXpose Fast Tunnel)
+name: Windows 11 RDP (Web-Based Cloudflare)
 
 on:
   workflow_dispatch:
@@ -9,35 +9,39 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable RDP
+    - name: Enable Remote Desktop & Optimize Speed
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
+        # Disable Password Policy & Create User
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
         
         net user ali pass123 /add
         net localgroup administrators ali /add
+        
+        # Max Speed Adjustments
+        Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
 
-    - name: Setup LocalXpose
+    - name: Setup & Run Cloudflare Tunnel
       run: |
-        Invoke-WebRequest -Uri "https://localxpose.io/api/v2/downloads/loclx-windows-amd64.zip" -OutFile "loclx.zip"
-        Expand-Archive -Path "loclx.zip" -DestinationPath "."
+        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
         
-        Start-Process -FilePath ".\loclx.exe" -ArgumentList "tunnel tcp --to 127.0.0.1:3389" -RedirectStandardOutput "loclx.log"
-        Start-Sleep -Seconds 6
+        # Start Tunnel in Background
+        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "tunnel.log" -RedirectStandardError "tunnel_err.log"
+        Start-Sleep -Seconds 8
         
         Write-Host "=========================================="
-        Write-Host "🚀 RDP READY"
+        Write-Host "🚀 WEB CLOUDFLARE RDP READY"
         Write-Host "=========================================="
-        Get-Content loclx.log
+        Get-Content tunnel_err.log | Select-String "trycloudflare.com"
         Write-Host "USERNAME        : ali"
         Write-Host "PASSWORD        : pass123"
         Write-Host "=========================================="
 
-    - name: Keep Alive
+    - name: Keep Alive Loop
       run: |
         while ($true) {
             Start-Sleep -Seconds 60
