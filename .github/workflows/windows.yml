@@ -1,4 +1,4 @@
-name: Windows 11 RDP (Web-Based Cloudflare)
+name: Windows 11 RDP + Auto AnyDesk Setup
 
 on:
   workflow_dispatch:
@@ -9,8 +9,9 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable Remote Desktop & Optimize Speed
+    - name: Enable RDP & Auto-Install AnyDesk
       run: |
+        # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
@@ -21,24 +22,32 @@ jobs:
         
         net user ali pass123 /add
         net localgroup administrators ali /add
-        
-        # Max Speed Adjustments
-        Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
 
-    - name: Setup & Run Cloudflare Tunnel
+        # Download & Install AnyDesk
+        Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "C:\AnyDesk.exe"
+        
+        # Set Password 'pass123' for Unattended Access
+        cmd.exe /c "echo pass123 | C:\AnyDesk.exe --set-password"
+
+    - name: Get AnyDesk ID & Start Tunnel
       run: |
-        Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "cloudflared.exe"
+        # Get AnyDesk ID
+        $anydeskId = cmd.exe /c "C:\AnyDesk.exe --get-id"
         
-        # Start Tunnel in Background
-        Start-Process -FilePath ".\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -RedirectStandardOutput "tunnel.log" -RedirectStandardError "tunnel_err.log"
-        Start-Sleep -Seconds 8
-        
+        # Start Bore Tunnel as Backup
+        Invoke-WebRequest -Uri "https://github.com/ekzhang/bore/releases/download/v0.5.0/bore-v0.5.0-x86_64-pc-windows-msvc.zip" -OutFile "bore.zip"
+        Expand-Archive -Path "bore.zip" -DestinationPath "."
+        Start-Process -FilePath ".\bore.exe" -ArgumentList "local 3389 --to bore.pub" -RedirectStandardOutput "bore.log"
+        Start-Sleep -Seconds 5
+
         Write-Host "=========================================="
-        Write-Host "🚀 WEB CLOUDFLARE RDP READY"
+        Write-Host "🚀 ANYDESK READY FOR LOW-LAG ACCESS"
         Write-Host "=========================================="
-        Get-Content tunnel_err.log | Select-String "trycloudflare.com"
-        Write-Host "USERNAME        : ali"
-        Write-Host "PASSWORD        : pass123"
+        Write-Host "ANYDESK ID      : $anydeskId"
+        Write-Host "ANYDESK PASS    : pass123"
+        Write-Host "=========================================="
+        Write-Host "RDP BACKUP IP   :"
+        Get-Content bore.log | Select-String "listening at"
         Write-Host "=========================================="
 
     - name: Keep Alive Loop
