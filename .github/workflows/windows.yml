@@ -9,11 +9,16 @@ jobs:
     timeout-minutes: 360
 
     steps:
-    - name: Enable RDP
+    - name: Enable RDP & Bypass Policy
       run: |
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        
+        # Bypass Password Complexity Policy
+        secedit /export /cfg C:\secpol.cfg
+        (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
+        secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
         
         net user ali pass123 /add
         net localgroup administrators ali /add
@@ -29,7 +34,7 @@ jobs:
         Write-Host "=========================================="
         Write-Host "🚀 RDP IS READY VIA CLOUDFLARE TCP!"
         Write-Host "=========================================="
-        Write-Host "HOST: rdp.trycloudflare.com (or check cloudflared output)"
+        Write-Host "HOST: rdp.trycloudflare.com"
         Write-Host "USERNAME: ali"
         Write-Host "PASSWORD: pass123"
         Write-Host "=========================================="
