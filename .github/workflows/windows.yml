@@ -1,4 +1,4 @@
-name: Fast Linux RDP (Direct MSTSC)
+name: Fast Linux RDP (Stable Tunnel)
 
 on:
   workflow_dispatch:
@@ -14,12 +14,12 @@ jobs:
         sudo apt update
         sudo apt install -y xfce4 xfce4-goodies xrdp
         
-        # Simple password setting
+        # User & Password setup
         sudo useradd -m -s /bin/bash rdpuser
         echo "rdpuser:pass123" | sudo chpasswd
         sudo usermod -aG sudo,xrdp rdpuser
         
-        # Configure XFCE session & permissions
+        # Session setup
         echo "startxfce4" | sudo tee /home/rdpuser/.xsession
         sudo chown rdpuser:rdpuser /home/rdpuser/.xsession
         
@@ -27,16 +27,16 @@ jobs:
         sudo sed -i 's/allowed_users=console/allowed_users=anybody/g' /etc/X11/Xwrapper.config
         sudo systemctl restart xrdp
 
-    - name: Start Persistent Serveo RDP Tunnel
+    - name: Start Pinggy RDP Tunnel
       run: |
         echo "=========================================="
         echo "USERNAME     : rdpuser"
         echo "PASSWORD     : pass123"
         echo "=========================================="
         
-        # Loop to automatically reconnect if serveo drops
+        # Loop for continuous connection
         while true; do
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -R 0:localhost:3389 serveo.net
+          ssh -p 443 -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 tcp.pinggy.io
           echo "Tunnel disconnected. Reconnecting in 5 seconds..."
           sleep 5
         done
