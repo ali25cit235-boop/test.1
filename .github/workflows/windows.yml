@@ -13,18 +13,22 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y xfce4 xfce4-goodies xrdp
-        sudo adduser runner xrdp
-        echo "xfce4-session" > ~/.xsession
-        sudo service xrdp restart
-
-    - name: Set RDP Password
-      run: |
-        echo "runner:Pass123456!@#" | sudo chpasswd
+        
+        # Create user & set permissions
+        sudo useradd -m -s /bin/bash rdpuser
+        echo "rdpuser:Pass123456!@#" | sudo chpasswd
+        sudo usermod -aG sudo,xrdp rdpuser
+        
+        # Configure XFCE session for rdpuser
+        echo "xfce4-session" | sudo tee /home/rdpuser/.xsession
+        sudo chown rdpuser:rdpuser /home/rdpuser/.xsession
+        
+        sudo systemctl restart xrdp
 
     - name: Start Serveo RDP Tunnel
       run: |
         echo "=========================================="
-        echo "USERNAME     : runner"
+        echo "USERNAME     : rdpuser"
         echo "PASSWORD     : Pass123456!@#"
         echo "=========================================="
         ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R 0:localhost:3389 serveo.net
