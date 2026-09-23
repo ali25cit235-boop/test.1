@@ -38,12 +38,24 @@ jobs:
         # Start Ngrok TCP Tunnel in Background
         Start-Process -FilePath "ngrok" -ArgumentList "tcp 3389"
         
-        # Wait for Tunnel to initialize
-        Start-Sleep -Seconds 5
+        # Retry loop until Ngrok API is active
+        $tunnelUrl = ""
+        $count = 0
+        while ([string]::IsNullOrEmpty($tunnelUrl) -and $count -lt 12) {
+            Start-Sleep -Seconds 3
+            try {
+                $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+                $tunnelUrl = $ngrokApi.tunnels[0].public_url -replace "tcp://", ""
+            } catch {
+                Write-Host "Waiting for Ngrok API to start..."
+            }
+            $count++
+        }
         
-        # Fetch Connection URL/IP
-        $ngrokApi = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
-        $tunnelUrl = $ngrokApi.tunnels[0].public_url -replace "tcp://", ""
+        if ([string]::IsNullOrEmpty($tunnelUrl)) {
+            Write-Error "Ngrok tunnel failed to start!"
+            exit 1
+        }
         
         Write-Host "=========================================="
         Write-Host "🚀 NGROK FAST RDP READY FOR MSTSC"
