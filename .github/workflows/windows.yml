@@ -1,49 +1,31 @@
-# Yahan workflow ka naam apna rakh sakte ho (jaise apna naam)
-name: WindowsSetup
+name: Windows Test
 
 on:
   workflow_dispatch:
-  # Agar 6 hours baad automatically naya wala chahiye to ye uncomment karo (GitHub TOS + minutes limit yaad rakhna)
-  # schedule:
-  #   - cron: '0 */6 * * *'
+  push:
 
 jobs:
-  # Yahan job ka naam bhi apna custom rakh sakte ho
-  setup:
+  windows:
     runs-on: windows-latest
+
     steps:
-      - name: Ngrok download aur auth
+      - name: Check Windows
+        shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile ngrok.zip
-          Expand-Archive -Path ngrok.zip -DestinationPath . -Force
-          .\ngrok.exe authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          Write-Host "Windows Runner Started"
+          systeminfo | Select-String "OS Name"
+          systeminfo | Select-String "OS Version"
 
-            - name: Access configure  # yahan apna naam / custom label use kar sakte ho
-        shell: powershell
+      - name: Check Hardware
+        shell: pwsh
         run: |
-          Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0 -Force
-          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-          netsh advfirewall firewall add rule name="AllowCustomPort" dir=in action=allow protocol=TCP localport=3389
-          $user = "MyCustomUser"          # yahan apna username
-          $plain = "YourStrongPass123"    # yahan apna password (jo marzi length)
-          $pass = ConvertTo-SecureString $plain -AsPlainText -Force
-          if (Get-LocalUser -Name $user -ErrorAction SilentlyContinue) {
-            Remove-LocalUser -Name $user
-          }
-          New-LocalUser -Name $user -Password $pass -PasswordNeverExpires -AccountNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member $user
-          Set-Service -Name TermService -StartupType Automatic
-          Start-Service TermService -ErrorAction SilentlyContinue
-      - name: Tunnel start aur Discord pe bhejo
-        run: |
-          Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -NoNewWindow
-          Start-Sleep -Seconds 15
-          $tunnels = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
-          $publicUrl = $tunnels.tunnels[0].public_url
-          $body = @{
-            content = "New details:`nURL: $publicUrl`nUser: MyCustomUser`nPass: YourStrongPass123"
-          } | ConvertTo-Json
-          Invoke-RestMethod -Uri "${{ secrets.DISCORD_WEBHOOK }}" -Method Post -Body $body -ContentType "application/json"
+          Get-CimInstance Win32_Processor |
+            Select-Object Name, NumberOfCores
 
-      - name: Running rakho (lagbhag 6 hours)
-        run: Start-Sleep -Seconds 21000
+          Get-CimInstance Win32_ComputerSystem |
+            Select-Object TotalPhysicalMemory
+
+      - name: Check PowerShell
+        shell: pwsh
+        run: |
+          $PSVersionTable
