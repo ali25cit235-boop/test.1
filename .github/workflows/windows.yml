@@ -24,23 +24,28 @@ jobs:
         # Disable Visual Effects & Animations (Speed Boost)
         Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
 
-    - name: Start Pinggy TCP Tunnel
+    - name: Start Pinggy TCP Tunnel & Show IP
       run: |
-        # Check and Install OpenSSH if missing
-        ssh -V
-        if ($LASTEXITCODE -ne 0) {
+        # Install OpenSSH if missing
+        if (!(Get-Command ssh -ErrorAction SilentlyContinue)) {
             Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
         }
 
-        # Start Pinggy TCP Tunnel for RDP port 3389
-        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "pinggy.log" -RedirectStandardError "pinggy_err.log"
-        Start-Sleep -Seconds 8
+        Write-Host "=========================================="
+        Write-Host "🚀 STARTING PINGGY TUNNEL (Please wait 5s)..."
+        Write-Host "=========================================="
+
+        # Run SSH tunnel in background and capture output directly
+        $job = Start-Job -ScriptBlock {
+            ssh -o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 tcp@a.pinggy.io
+        }
+        
+        Start-Sleep -Seconds 6
+        
+        # Display Job Output / Connection URL
+        Receive-Job -Job $job
         
         Write-Host "=========================================="
-        Write-Host "🚀 FAST RDP READY"
-        Write-Host "=========================================="
-        Get-Content pinggy.log
-        Get-Content pinggy_err.log
         Write-Host "USERNAME    : ali"
         Write-Host "PASSWORD    : pass123"
         Write-Host "=========================================="
