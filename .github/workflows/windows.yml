@@ -1,4 +1,4 @@
-name: Windows RDP (Loophole Tunnel)
+name: Windows RDP (Serveo Direct)
 
 on:
   workflow_dispatch:
@@ -19,20 +19,10 @@ jobs:
       run: |
         cmd /c "net user runneradmin Pass123456!@#"
 
-    - name: Setup & Run Loophole
+    - name: Start RDP Tunnel & Print Details
       run: |
-        Invoke-WebRequest -Uri "https://github.com/loophole/cli/releases/download/v1.0.0-beta.15/loophole_1.0.0-beta.15_windows_x86_64.zip" -OutFile "loophole.zip"
-        Expand-Archive -Path "loophole.zip" -DestinationPath "."
-        
-        Start-Process -FilePath ".\loophole.exe" -ArgumentList "tcp 3389" -RedirectStandardOutput "loophole.log"
-        Start-Sleep -Seconds 10
-        
         Write-Host "=========================================="
-        Write-Host "🚀 RDP DETAILS READY"
-        Write-Host "=========================================="
-        Get-Content loophole.log
         Write-Host "USERNAME     : runneradmin"
         Write-Host "PASSWORD     : Pass123456!@#"
         Write-Host "=========================================="
-        
-        Start-Sleep -Seconds 21600
+        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R 0:localhost:3389 serveo.net
