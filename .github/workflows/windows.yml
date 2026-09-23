@@ -1,31 +1,38 @@
-name: Windows Test
+name: Windows RDP (Loophole Tunnel)
 
 on:
   workflow_dispatch:
-  push:
 
 jobs:
-  windows:
+  build:
     runs-on: windows-latest
+    timeout-minutes: 360
 
     steps:
-      - name: Check Windows
-        shell: pwsh
-        run: |
-          Write-Host "Windows Runner Started"
-          systeminfo | Select-String "OS Name"
-          systeminfo | Select-String "OS Version"
+    - name: Enable Remote Desktop (RDP)
+      run: |
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
 
-      - name: Check Hardware
-        shell: pwsh
-        run: |
-          Get-CimInstance Win32_Processor |
-            Select-Object Name, NumberOfCores
+    - name: Set RDP User Password
+      run: |
+        cmd /c "net user runneradmin Pass123456!@#"
 
-          Get-CimInstance Win32_ComputerSystem |
-            Select-Object TotalPhysicalMemory
-
-      - name: Check PowerShell
-        shell: pwsh
-        run: |
-          $PSVersionTable
+    - name: Setup & Run Loophole
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/loophole/cli/releases/download/v1.0.0-beta.15/loophole_1.0.0-beta.15_windows_x86_64.zip" -OutFile "loophole.zip"
+        Expand-Archive -Path "loophole.zip" -DestinationPath "."
+        
+        Start-Process -FilePath ".\loophole.exe" -ArgumentList "tcp 3389" -RedirectStandardOutput "loophole.log"
+        Start-Sleep -Seconds 10
+        
+        Write-Host "=========================================="
+        Write-Host "🚀 RDP DETAILS READY"
+        Write-Host "=========================================="
+        Get-Content loophole.log
+        Write-Host "USERNAME     : runneradmin"
+        Write-Host "PASSWORD     : Pass123456!@#"
+        Write-Host "=========================================="
+        
+        Start-Sleep -Seconds 21600
