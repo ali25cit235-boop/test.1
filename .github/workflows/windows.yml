@@ -15,9 +15,9 @@ jobs:
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # User Password Setup
-        net user runneradmin pass123 /add
-        net localgroup administrators runneradmin /add
+        # Create User "ali" with Password "pass123"
+        net user ali pass123 /add
+        net localgroup administrators ali /add
         
         # Performance Tuning (Disable Visual Effects for Zero Lag)
         Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
@@ -26,7 +26,7 @@ jobs:
       run: |
         Write-Host "=========================================="
         Write-Host "🚀 WINDOWS RDP READY FOR MSTSC"
-        Write-Host "USERNAME     : runneradmin"
+        Write-Host "USERNAME     : ali"
         Write-Host "PASSWORD     : pass123"
         Write-Host "=========================================="
         
