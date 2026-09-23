@@ -27,10 +27,16 @@ jobs:
         sudo sed -i 's/allowed_users=console/allowed_users=anybody/g' /etc/X11/Xwrapper.config
         sudo systemctl restart xrdp
 
-    - name: Start Serveo RDP Tunnel
+    - name: Start Persistent Serveo RDP Tunnel
       run: |
         echo "=========================================="
         echo "USERNAME     : rdpuser"
         echo "PASSWORD     : pass123"
         echo "=========================================="
-        ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -R 0:localhost:3389 serveo.net
+        
+        # Loop to automatically reconnect if serveo drops
+        while true; do
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -R 0:localhost:3389 serveo.net
+          echo "Tunnel disconnected. Reconnecting in 5 seconds..."
+          sleep 5
+        done
