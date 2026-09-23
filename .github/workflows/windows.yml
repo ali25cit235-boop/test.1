@@ -5,17 +5,17 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2019  # Light-weight Windows Server 2019 (Fastest)
+    runs-on: windows-latest
     timeout-minutes: 360
 
     steps:
-    - name: Enable Remote Desktop & Extreme Performance Mode
+    - name: Enable Remote Desktop & Fix Speed
       run: |
         # Enable RDP
         Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
         
-        # Bypass Password Policy & Create User
+        # Disable Password Policy & Create User
         secedit /export /cfg C:\secpol.cfg
         (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
         secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
@@ -23,7 +23,7 @@ jobs:
         net user ali pass123 /add
         net localgroup administrators ali /add
 
-        # Disable Visual Effects & Animations (Fixes Lag Completely)
+        # Disable Visual Effects & Animations (Extreme Speed Boost)
         Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects' -Name "VisualFXSetting" -Value 2
         Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name "UserPreferencesMask" -Value ([byte[]](0x90,0x12,0x03,0x80,0x10,0x00,0x00,0x00))
 
