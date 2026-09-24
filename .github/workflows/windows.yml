@@ -1,48 +1,26 @@
-name: Windows RDP Free
-
+name: RdpByNTechDz-Admin
 on:
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 360
-
     steps:
-    - name: Enable RDP & Bypass Policy
-      run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
-        
-        secedit /export /cfg C:\secpol.cfg
-        (Get-Content C:\secpol.cfg) -replace 'PasswordComplexity = 1', 'PasswordComplexity = 0' | Set-Content C:\secpol.cfg
-        secedit /configure /db C:\windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
-        
-        net user ali pass123 /add
-        net localgroup administrators ali /add
+      - name: Configure RDP and Create Admin User
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          New-LocalUser "NTechDz" -Password (ConvertTo-SecureString -AsPlainText "W1nd0ws-P4ssw0rd-2025!" -Force) -FullName "NTechDz User"
+          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "NTechDz"
+          Add-LocalGroupMember -Group "Administrators" -Member "NTechDz"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
 
-    - name: Start Pinggy TCP Tunnel
-      run: |
-        if (!(Get-Command ssh -ErrorAction SilentlyContinue)) {
-            Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-        }
-
-        # Start tunnel and capture output live
-        Start-Process -FilePath "ssh" -ArgumentList "-o StrictHostKeyChecking=no -p 443 -R 0:localhost:3389 tcp@a.pinggy.io" -RedirectStandardOutput "pinggy.log" -RedirectStandardError "pinggy_err.log"
-        Start-Sleep -Seconds 7
-
-        Write-Host "=========================================="
-        Write-Host "🚀 PINGGY RDP TUNNEL READY!"
-        Write-Host "=========================================="
-        Get-Content pinggy.log
-        Get-Content pinggy_err.log
-        Write-Host "USERNAME: ali"
-        Write-Host "PASSWORD: pass123"
-        Write-Host "=========================================="
-
-    - name: Keep Alive
-      run: |
-        while ($true) {
-            Start-Sleep -Seconds 30
-        }
+      - name: Start TCP RDP Tunnel via Serveo
+        run: |
+          Write-Host "======================================================================"
+          Write-Host "            RDP Connection Details - NTechDz Channel"
+          Write-Host "======================================================================"
+          Write-Host "Username:    NTechDz (Administrator)"
+          Write-Host "Password:    W1nd0ws-P4ssw0rd-2025!"
+          Write-Host "======================================================================"
+          ssh -T -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net
